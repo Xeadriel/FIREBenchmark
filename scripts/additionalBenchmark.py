@@ -36,7 +36,7 @@ def main():
 	args = parser.parse_args()
 
 	for checkpoint in args.checkpointsMRS:
-		model = firelang.modules.FireWord.from_pretrained(checkpoint).to("cuda")
+		model = FireWord.from_pretrained(checkpoint).to("cuda")
 		print(model)
 
 		# 'benchmarks/MSR/msr_paraphrase_train.csv'
