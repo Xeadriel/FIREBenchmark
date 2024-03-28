@@ -11,11 +11,11 @@ def prepareMSRData(path):
 			String : path: path of MSR data
 		
 		returns:
-			List : sentencePairs: list of tuples that contain sentence pairs
+			List : sentencePairs: 2 lists that contain sentence pairs
 			List : labels: integer values 1 or 0 that indicate whether the sentences are similar
 	"""
 	labels = []
-	sentencePairs = []
+	sentencePairs = [[], []]
 
 	with open(path, newline='', encoding="utf8") as csvfile:
 		# there is a line that's broken by quotation marks. ß is never used in English so there is that
@@ -23,7 +23,7 @@ def prepareMSRData(path):
 		next(reader) # skip header
 		
 		for row in reader:
-			labels.append(row[0])
+			labels.append(int(row[0]))
 			
 			sentence1 = row[3].strip().lower()
 			sentence2 = row[4].strip().lower()
@@ -34,7 +34,8 @@ def prepareMSRData(path):
 			sentence1 = " ".join(word_tokenize(sentence1))
 			sentence2 = " ".join(word_tokenize(sentence2))
 			
-			sentencePairs.append((sentence1, sentence2))
+			sentencePairs[0].append(sentence1)
+			sentencePairs[1].append(sentence2)
 	
 	return sentencePairs, labels
 
