@@ -5,7 +5,7 @@ import string
 def prepareMRPCData(path):
 	"""
 		Makes the sentences lower case, strips leading and trailing whitespace and removes punctuation.
-		Returns the sentence pairs with their labels. 
+		Returns the sentence pairs with their labels (0 or 1). 
 		
 		parameters:
 			String : path: path of MRPC data
@@ -42,7 +42,8 @@ def prepareMRPCData(path):
 def prepareSSTData(splitPath, sentencesPath, dictionaryPath, labelsPath):
 	"""
 		Makes the sentences lower case, strips leading and trailing whitespace and removes punctuation.
-		Returns the sentence pairs with their labels. 
+		The sentiment "very negative", "negative" etc. is used as the second sentence.
+		Returns the sentence pairs with their labels (0 or 1, to be interpreted as false or true).
 		
 		parameters:
 			String : splitPath: file with train, test, dev split information,
@@ -52,11 +53,11 @@ def prepareSSTData(splitPath, sentencesPath, dictionaryPath, labelsPath):
 		
 		returns:
 			List : trainPairs: 2 lists that contain sentence pairs
-			List : trainLabels: integer values 1 or 0 that indicate whether the sentences are similar
+			List : trainLabels: integer values 1 or 0 that indicate whether the sentences fits the supplied sentiment
 			List : devPairs: 2 lists that contain sentence pairs
-			List : devLabels: integer values 1 or 0 that indicate whether the sentences are similar
+			List : devLabels: integer values 1 or 0 that indicate whether the sentences fits the supplied sentiment
 			List : testPairs: 2 lists that contain sentence pairs
-			List : testLabels: integer values 1 or 0 that indicate whether the sentences are similar
+			List : testLabels: integer values 1 or 0 that indicate whether the sentence fits the supplied sentiment
 
 	"""
 	labels = {}
@@ -216,6 +217,26 @@ def prepareSSTData(splitPath, sentencesPath, dictionaryPath, labelsPath):
 	return trainPairs, trainLabels, devPairs, devLabels, testPairs, testLabels
 
 def prepareSSTGlueData(trainPath, devPath, testPath):
+	"""
+		Makes the sentences lower case, strips leading and trailing whitespace and removes punctuation.
+		The sentiment "positive" is used as the second sentence on every sentence.
+		Returns the sentence pairs with their labels (0 or 1; interpret as: not positive or positive).
+		
+		parameters:
+			String : splitPath: file with train, test, dev split information,
+			String : sentencesPath: file with all sentences,
+			String : dictionaryPath: file with phrases,
+			String : labelsPath: file with labels assigned to phrases,
+		
+		returns:
+			List : trainPairs: 2 lists that contain sentence pairs
+			List : trainLabels: integer values 1 or 0 that indicate whether the sentence is positive
+			List : devPairs: 2 lists that contain sentence pairs
+			List : devLabels: integer values 1 or 0 that indicate whether the sentence is positive
+			List : testPairs: 2 lists that contain sentence pairs
+			List : testIndices: integer indices of pairs
+
+	"""
 	trainPairs = [[], []]
 	devPairs = [[], []]
 	testPairs = [[], []]
@@ -281,6 +302,26 @@ def prepareSSTGlueData(trainPath, devPath, testPath):
 	return trainPairs, trainLabels, devPairs, devLabels, testPairs, testIndices
 
 def prepareRTEGlueData(trainPath, devPath, testPath):
+	"""
+		Makes the sentences lower case, strips leading and trailing whitespace and removes punctuation.
+		Returns the sentence pairs with their labels (0 == not_entailment, 1 = entailment).
+		
+		parameters:
+			String : splitPath: file with train, test, dev split information,
+			String : sentencesPath: file with all sentences,
+			String : dictionaryPath: file with phrases,
+			String : labelsPath: file with labels assigned to phrases,
+		
+		returns:
+			List : trainPairs: 2 lists that contain sentence pairs
+			List : trainLabels: integer values 1 or 0 that indicate whether the sentences are entailed
+			List : devPairs: 2 lists that contain sentence pairs
+			List : devLabels: integer values 1 or 0 that indicate whether the sentences are entailed
+			List : testPairs: 2 lists that contain sentence pairs
+			List : testIndices: integer indices of pairs
+
+	"""
+	
 	trainPairs = [[], []]
 	devPairs = [[], []]
 	testPairs = [[], []]

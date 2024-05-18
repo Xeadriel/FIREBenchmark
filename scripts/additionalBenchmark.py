@@ -31,9 +31,9 @@ def main():
 		"--checkpointsMRPC",
 		nargs="+",
 		default=[
-			"checkpoints/wacky_mlplanardiv_d2_l4_k1_polysemy",
-			"checkpoints/wacky_mlplanardiv_d2_l4_k10",
-			"checkpoints/wacky_mlplanardiv_d2_l8_k20",
+			"checkpoints/v1.1/wacky_mlplanardiv_d2_l4_k1_polysemy",
+			"checkpoints/v1.1/wacky_mlplanardiv_d2_l4_k10",
+			"checkpoints/v1.1/wacky_mlplanardiv_d2_l8_k20",
 		],
 	)
 
@@ -41,9 +41,9 @@ def main():
 		"--checkpointsSST",
 		nargs="+",
 		default=[
-			# "checkpoints/wacky_mlplanardiv_d2_l4_k1_polysemy",
-			# "checkpoints/wacky_mlplanardiv_d2_l4_k10",
-			# "checkpoints/wacky_mlplanardiv_d2_l8_k20",
+			# "checkpoints/v1.1/wacky_mlplanardiv_d2_l4_k1_polysemy",
+			# "checkpoints/v1.1/wacky_mlplanardiv_d2_l4_k10",
+			# "checkpoints/v1.1/wacky_mlplanardiv_d2_l8_k20",
 		],
 	)
 
@@ -51,9 +51,9 @@ def main():
 		"--checkpointsSSTGlue",
 		nargs="+",
 		default=[
-			"checkpoints/wacky_mlplanardiv_d2_l4_k1_polysemy",
-			"checkpoints/wacky_mlplanardiv_d2_l4_k10",
-			"checkpoints/wacky_mlplanardiv_d2_l8_k20",
+			"checkpoints/v1.1/wacky_mlplanardiv_d2_l4_k1_polysemy",
+			"checkpoints/v1.1/wacky_mlplanardiv_d2_l4_k10",
+			"checkpoints/v1.1/wacky_mlplanardiv_d2_l8_k20",
 		],
 	)
 
@@ -61,9 +61,9 @@ def main():
 		"--checkpointsRTE",
 		nargs="+",
 		default=[
-			"checkpoints/wacky_mlplanardiv_d2_l4_k1_polysemy",
-			"checkpoints/wacky_mlplanardiv_d2_l4_k10",
-			"checkpoints/wacky_mlplanardiv_d2_l8_k20",
+			"checkpoints/v1.1/wacky_mlplanardiv_d2_l4_k1_polysemy",
+			"checkpoints/v1.1/wacky_mlplanardiv_d2_l4_k10",
+			"checkpoints/v1.1/wacky_mlplanardiv_d2_l8_k20",
 		],
 	)
 
@@ -79,15 +79,15 @@ def main():
 	print("\t--------------------------------------------------------------------------------------------------------------------------------")
 	print("\tThe Stanford Sentiment Treebank")
 	print("\t--------------------------------------------------------------------------------------------------------------------------------")
-	trainPairsSST, trainLabelsSST, devPairsSST, devLabelsSST, testPairsSST, testLabelsSST = prepareSSTData('scripts/tasks/SST/datasetSplit.txt', 
-					'scripts/tasks/SST/datasetSentences.txt', 'scripts/tasks/SST/dictionary.txt', 'scripts/tasks/SST/sentiment_labels.txt')
-	for checkpoint in args.checkpointsSST:	
-		model = FireWord.from_pretrained(checkpoint).to(device)
-		print(f"checkpoint: {checkpoint}")
+	# trainPairsSST, trainLabelsSST, devPairsSST, devLabelsSST, testPairsSST, testLabelsSST = prepareSSTData('scripts/tasks/SST/datasetSplit.txt', 
+	# 				'scripts/tasks/SST/datasetSentences.txt', 'scripts/tasks/SST/dictionary.txt', 'scripts/tasks/SST/sentiment_labels.txt')
+	# for checkpoint in args.checkpointsSST:	
+	# 	model = FireWord.from_pretrained(checkpoint).to(device)
+	# 	print(f"checkpoint: {checkpoint}")
 
-		accuracy = benchmarkSST(model, testPairsSST, testLabelsSST, devPairsSST, devLabelsSST, sifA)
+	# 	accuracy = benchmarkSST(model, testPairsSST, testLabelsSST, devPairsSST, devLabelsSST, sifA)
 		
-		print(f"accuracy: {accuracy}")
+	# 	print(f"accuracy: {accuracy}")
 	
 
 	print("\t--------------------------------------------------------------------------------------------------------------------------------")
@@ -96,28 +96,28 @@ def main():
 	print("\t\t--------------------------------------------------------------------------------------------------------------------------------")
 	print("\t\tMicrosoft Research Paraphrase Corpus")
 	print("\t\t--------------------------------------------------------------------------------------------------------------------------------")
-	pairsMRPC, labelsMRPC = prepareMRPCData('scripts/tasks/MRPC/msr_paraphrase_train.csv')
+	testPairsMRPC, testLabelsMRPC = prepareMRPCData('scripts/tasks/MRPC/msr_paraphrase_test.txt')
 	for checkpoint in args.checkpointsMRPC:	
 		model = FireWord.from_pretrained(checkpoint).to(device)
 		print(f"\t\tcheckpoint: {checkpoint}")
 
-		predsMedianMRPC, predsThresholdMRPC, predsF1ThresholdMRPC, accuracy, f1 = benchmarkMRPC(model, pairsMRPC, labelsMRPC, sifA)
+		predsMedianMRPC, predsThresholdMRPC, predsF1ThresholdMRPC, accuracy, f1 = benchmarkMRPC(model, testPairsMRPC, testLabelsMRPC, sifA)
 		
 		print(f"\t\taccuracy: {accuracy}\n\t\tf1: {f1}\n")
 
-		with open(f'scripts/taskResults/MRPC/median/MRPC-{checkpoint[12:]}.tsv', 'w', newline='') as csvfile:
+		with open(f'scripts/taskResults/MRPC/median/MRPC-{checkpoint[17:]}.tsv', 'w', newline='') as csvfile:
 			writer = csv.writer(csvfile, delimiter='\t', quotechar='ß')
 			writer.writerow(["index", "prediction"])
 			for index, pred in zip(range(len(predsMedianMRPC)), predsMedianMRPC):
 				writer.writerow([index, pred])
 		
-		with open(f'scripts/taskResults/MRPC/threshold/MRPC-{checkpoint[12:]}.tsv', 'w', newline='') as csvfile:
+		with open(f'scripts/taskResults/MRPC/threshold/MRPC-{checkpoint[17:]}.tsv', 'w', newline='') as csvfile:
 			writer = csv.writer(csvfile, delimiter='\t', quotechar='ß')
 			writer.writerow(["index", "prediction"])
 			for index, pred in zip(range(len(predsThresholdMRPC)), predsThresholdMRPC):
 				writer.writerow([index, pred])
 		
-		with open(f'scripts/taskResults/MRPC/f1Threshold/MRPC-{checkpoint[12:]}.tsv', 'w', newline='') as csvfile:
+		with open(f'scripts/taskResults/MRPC/f1Threshold/MRPC-{checkpoint[17:]}.tsv', 'w', newline='') as csvfile:
 			writer = csv.writer(csvfile, delimiter='\t', quotechar='ß')
 			writer.writerow(["index", "prediction"])
 			for index, pred in zip(range(len(predsF1ThresholdMRPC)), predsF1ThresholdMRPC):
@@ -133,13 +133,13 @@ def main():
 		model = FireWord.from_pretrained(checkpoint).to(device)
 		predsMedianSSTGlue, predsThresholdSSTGlue = predictSSTGlue(model, testPairsSSTGlue, devPairsSSTGlue, devLabelsSSTGlue, sifA)
 
-		with open(f'scripts/taskResults/SSTGLUE/median/SST-2-{checkpoint[12:]}.tsv', 'w', newline='') as csvfile:
+		with open(f'scripts/taskResults/SSTGLUE/median/SST-2-{checkpoint[17:]}.tsv', 'w', newline='') as csvfile:
 			writer = csv.writer(csvfile, delimiter='\t', quotechar='ß')
 			writer.writerow(["index", "prediction"])
 			for index, pred in zip(range(len(predsMedianSSTGlue)), predsMedianSSTGlue):
 				writer.writerow([index, pred])
 		
-		with open(f'scripts/taskResults/SSTGLUE/threshold/SST-2-{checkpoint[12:]}.tsv', 'w', newline='') as csvfile:
+		with open(f'scripts/taskResults/SSTGLUE/threshold/SST-2-{checkpoint[17:]}.tsv', 'w', newline='') as csvfile:
 			writer = csv.writer(csvfile, delimiter='\t', quotechar='ß')
 			writer.writerow(["index", "prediction"])
 			for index, pred in zip(testIndicesSSTGlue, predsThresholdSSTGlue):
@@ -154,28 +154,19 @@ def main():
 		model = FireWord.from_pretrained(checkpoint).to(device)
 		predsMedianRTE, predsThresholdRTE = predictRTE(model, testPairsRTE, devPairsRTE, devLabelsRTE, sifA)
 
-		with open(f'scripts/taskResults/RTE/median/RTE-{checkpoint[12:]}.tsv', 'w', newline='') as csvfile:
+		with open(f'scripts/taskResults/RTE/median/RTE-{checkpoint[17:]}.tsv', 'w', newline='') as csvfile:
 				writer = csv.writer(csvfile, delimiter='\t', quotechar='ß')
 				writer.writerow(["index", "prediction"])
 				for index, pred in zip(range(len(predsMedianRTE)), predsMedianRTE):
 					writer.writerow([index, pred])
 			
-		with open(f'scripts/taskResults/RTE/threshold/RTE-{checkpoint[12:]}.tsv', 'w', newline='') as csvfile:
+		with open(f'scripts/taskResults/RTE/threshold/RTE-{checkpoint[17:]}.tsv', 'w', newline='') as csvfile:
 			writer = csv.writer(csvfile, delimiter='\t', quotechar='ß')
 			writer.writerow(["index", "prediction"])
 			for index, pred in zip(testIndicesRTE, predsThresholdRTE):
 				writer.writerow([index, pred])
 
 	
-
-""" rescaling (smoothing) and exponential """
-
-def simmatRescale(simmat) -> np.ndarray:
-	scale = np.abs(simmat).mean(axis=1, keepdims=True)
-	simmat = simmat / (scale * scale.T) ** 0.5
-
-	return simmat
-
 @torch.no_grad()
 @Timer(elapsed, "sentsim")
 def benchmarkMRPC(
@@ -210,7 +201,7 @@ def benchmarkMRPC(
 		diag = np.diag(simmat)
 		simmat = simmat - 0.5 * (diag.reshape(-1, 1) + diag.reshape(1, -1))
 
-        """ smoothing by standardization """
+	""" smoothing by standardization """
 	with Timer(elapsed, "smooth"):
 		mean1 = np.mean(simmat, axis=1, keepdims=True)
 		std1 = np.std(simmat, axis=1, keepdims=True)
@@ -230,7 +221,7 @@ def benchmarkMRPC(
 	falseNegCount = sum([int(preds[i] >= medianThreshhold) == 0 and labels[i] == 1 for i in range(len(preds))])
 
 	medianf1Score = truePosCount / (truePosCount + 0.5 * (falsePosCount + falseNegCount))
-	print(f"\t\tmedianThreshhold: {medianThreshhold} \n\t\tmedianAccuracy: {medianScore}\n\t\tmedianF1: {medianf1Score}")
+	# print(f"\t\tmedianThreshhold: {medianThreshhold} \n\t\tmedianAccuracy: {medianScore}\n\t\tmedianF1: {medianf1Score}")
 
 	bestThreshold = 0
 	bestF1Threshold = 0
@@ -256,8 +247,8 @@ def benchmarkMRPC(
 			bestThreshold = threshold
 			bestAccuracy = accuracy
 	
-	print(f"\t\taccuracy threshold = {bestThreshold}")
-	print(f"\t\tF1 threshold = {bestF1Threshold}")
+	# print(f"\t\taccuracy threshold = {bestThreshold}")
+	# print(f"\t\tF1 threshold = {bestF1Threshold}")
 
 	predsMedian = [int(pred >= medianThreshhold) for pred in preds]
 	predsThreshold = [int(pred >= bestThreshold) for pred in preds]
@@ -433,12 +424,12 @@ def benchmarkSST(
 		(((not predsVN[i] >= thresholdVN) and not(predsN[i] >= thresholdN) and not(predsNeut[i] >= thresholdNeut)
 			and not(predsP[i] >= thresholdP) and (predsVP[i] >= thresholdVP)) and (devLabels[i] > 0.8 and  devLabels[i] <= 1)) #very positve
 						) for i in range(len(N))]) / len(N)
-	print(
-		f"threshhold very negative:\t{thresholdVN}\n"
-		f"threshhold negative:\t\t{thresholdN}\n"
-		f"threshhold neutral:\t\t {thresholdNeut}\n"
-		f"threshhold positive:\t\t {thresholdP}\n"
-		f"threshhold very positive:\t{thresholdVP}")
+	# print(
+	# 	f"threshhold very negative:\t{thresholdVN}\n"
+	# 	f"threshhold negative:\t\t{thresholdN}\n"
+	# 	f"threshhold neutral:\t\t {thresholdNeut}\n"
+	# 	f"threshhold positive:\t\t {thresholdP}\n"
+	# 	f"threshhold very positive:\t{thresholdVP}")
 
 	return accuracy
 
@@ -486,7 +477,7 @@ def predictSSTGlue(
 			std0 = np.std(simmat, axis=0, keepdims=True)
 			simmat = (simmat - (mean1 + mean0) / 2) / (std0 * std1) ** 0.5
 
-			N = len(pairs[0])
+			N = len(devPairs[0])
 			preds = [simmat[i, i + N] for i in range(N)]
 			preds = np.exp(preds)
 			preds = np.array(preds)
@@ -593,7 +584,7 @@ def predictRTE(
 			std0 = np.std(simmat, axis=0, keepdims=True)
 			simmat = (simmat - (mean1 + mean0) / 2) / (std0 * std1) ** 0.5
 
-			N = len(pairs[0])
+			N = len(devPairs[0])
 			preds = [simmat[i, i + N] for i in range(N)]
 			preds = np.exp(preds)
 			preds = np.array(preds)

@@ -227,6 +227,9 @@ class FireWord(FireEmbedding):
         loss = Loss()
 
         logits = x1 * x2
+        print("########################################")
+        print(type(logits))
+        print("########################################")
         loss_sim = F.binary_cross_entropy_with_logits(
             logits, labels.float(), reduction="none"
         )

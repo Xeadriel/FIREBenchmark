@@ -62,7 +62,7 @@ class StackingSlicing(Module):
         )
 
     def __getitem__(self, index: IndexLike):
-        new_shape = tuple(torch.empty(self.shape)[index].shape)
+        new_shape = tuple(torch.empty(self.shape, device="cuda")[index].shape)
         to: StackingSlicing = self.restack(new_shape)
 
         # A parameter not listed in `unsliceable_params` should be

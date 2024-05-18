@@ -1,0 +1,41 @@
+python -m scripts.train \
+    --sz_batch=32768 \
+    --lr=0.005 \
+    --lr_scheduler=OneCycleLR \
+    --n_iters=600000 \
+    --eval_interval=1000 \
+    --savedir=results/fineTuningResults/MRPC_v1.1_wacky_mlplanardiv_d2_l8_k20 \
+    --optimizer=adamw \
+    --seed=0 \
+    --accum_steps=10 \
+    --weight_decay=1e-6 \
+	--pretrainedModel=checkpoints/v1.1/wacky_mlplanardiv_d2_l8_k20
+	--task=MRPC
+
+python -m scripts.train \
+    --sz_batch=32768 \
+    --lr=0.005 \
+    --lr_scheduler=OneCycleLR \
+    --n_iters=600000 \
+    --eval_interval=1000 \
+    --savedir=results/fineTuningResults/MRPC_v1.1_wacky_mlplanardiv_d2_l4_k10
+    --optimizer=adamw \
+    --seed=0 \
+    --accum_steps=10 \
+    --weight_decay=1e-6 \
+	--pretrainedModel=checkpoints/v1.1/wacky_mlplanardiv_d2_l4_k10
+	--task=MRPC
+	
+python -m scripts.train \
+    --sz_batch=32768 \
+    --lr=0.005 \
+    --lr_scheduler=OneCycleLR \
+    --n_iters=600000 \
+    --eval_interval=1000 \
+    --savedir=results/fineTuningResults/MRPC_v1.1_wacky_mlplanardiv_d2_l4_k1_polysemy
+    --optimizer=adamw \
+    --seed=0 \
+    --accum_steps=10 \
+    --weight_decay=1e-6 \
+	--pretrainedModel=checkpoints/v1.1/wacky_mlplanardiv_d2_l4_k1_polysemy
+	--task=MRPC
