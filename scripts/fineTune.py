@@ -253,17 +253,18 @@ def predictSentencePairs(
 	sents2 = [ [w for w in sent if w in sif_weights and w != vocab.unk] for sent in pairs[1] ]
 
 	similarities = torch.zeros((len(sents1), 1), requires_grad=True, device=device)
+	similaritiesTmp =  torch.zeros((len(sents1), 1), requires_grad=False, device=device)
 
 	for y in range(len(sents1)):
 		sent1 = sents1[y]
 		sent2 = sents2[y]
 
-		similarity =  0
+		
 		for word1 in sent1:
 			for word2 in sent2:
-				similarity += model[word1] * model[word2] * sif_weights[word1] * sif_weights[word2]
+				similaritiesTmp[y] += model[word1] * model[word2] * sif_weights[word1] * sif_weights[word2]
 		
-		similarities[y] += similarity
+	similarities += similaritiesTmp
 
 	return similarities
 
