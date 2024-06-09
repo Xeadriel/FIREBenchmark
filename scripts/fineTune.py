@@ -88,10 +88,13 @@ def fineTune(args):
 		logits,
 		torch.tensor(evalLabels, dtype=torch.float, device=device, requires_grad=False), reduction="none"
 	)
+	loss = Loss()
 	loss.add("sim", lossSim)
 
 	total_loss = loss.reduced_total()
 	best_loss = total_loss.item()
+	# initial save
+	model.save(args.savedir)
 
 	model.train()
 
