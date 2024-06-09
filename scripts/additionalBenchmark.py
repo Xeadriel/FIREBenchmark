@@ -5,6 +5,7 @@ from collections.abc import Callable
 from collections import defaultdict, Counter
 from corpusit import Vocab
 import nltk
+import random
 import numpy as np
 import pandas as pd
 import torch
@@ -26,11 +27,19 @@ import csv
 
 @torch.no_grad()
 def main():
+	seed = 0
+	random.seed(seed)
+	np.random.seed(seed)
+	torch.manual_seed(seed)
+	torch.cuda.manual_seed(seed)
+	torch.backends.cudnn.deterministic = True
+
 	parser = argparse.ArgumentParser()
 	parser.add_argument(
 		"--checkpointsMRPC",
 		nargs="+",
 		default=[
+			"results/fineTuningResults/MRPC_v1.1_wacky_mlplanardiv_d2_l8_k20finetune",
 			"checkpoints/v1.1/wacky_mlplanardiv_d2_l4_k1_polysemy",
 			"checkpoints/v1.1/wacky_mlplanardiv_d2_l4_k10",
 			"checkpoints/v1.1/wacky_mlplanardiv_d2_l8_k20",
@@ -70,7 +79,6 @@ def main():
 	args = parser.parse_args()
 
 	device = "cuda"
-	torch.set_default_device(device)
 
 	sifA = 0.001
 	print("--------------------------------------------------------------------------------------------------------------------------------")
@@ -105,19 +113,19 @@ def main():
 		
 		print(f"\t\taccuracy: {accuracy}\n\t\tf1: {f1}\n")
 
-		with open(f'scripts/taskResults/MRPC/median/MRPC-{checkpoint[17:]}.tsv', 'w', newline='') as csvfile:
+		with open(f'scripts/taskResults/MRPC/median/MRPC-{str(model.config.dim) + model.config.func + model.config.measure}.tsv', 'w', newline='') as csvfile:
 			writer = csv.writer(csvfile, delimiter='\t', quotechar='ß')
 			writer.writerow(["index", "prediction"])
 			for index, pred in zip(range(len(predsMedianMRPC)), predsMedianMRPC):
 				writer.writerow([index, pred])
 		
-		with open(f'scripts/taskResults/MRPC/threshold/MRPC-{checkpoint[17:]}.tsv', 'w', newline='') as csvfile:
+		with open(f'scripts/taskResults/MRPC/threshold/MRPC-{str(model.config.dim) + model.config.func + model.config.measure}.tsv', 'w', newline='') as csvfile:
 			writer = csv.writer(csvfile, delimiter='\t', quotechar='ß')
 			writer.writerow(["index", "prediction"])
 			for index, pred in zip(range(len(predsThresholdMRPC)), predsThresholdMRPC):
 				writer.writerow([index, pred])
 		
-		with open(f'scripts/taskResults/MRPC/f1Threshold/MRPC-{checkpoint[17:]}.tsv', 'w', newline='') as csvfile:
+		with open(f'scripts/taskResults/MRPC/f1Threshold/MRPC-{str(model.config.dim) + model.config.func + model.config.measure}.tsv', 'w', newline='') as csvfile:
 			writer = csv.writer(csvfile, delimiter='\t', quotechar='ß')
 			writer.writerow(["index", "prediction"])
 			for index, pred in zip(range(len(predsF1ThresholdMRPC)), predsF1ThresholdMRPC):
@@ -133,13 +141,13 @@ def main():
 		model = FireWord.from_pretrained(checkpoint).to(device)
 		predsMedianSSTGlue, predsThresholdSSTGlue = predictSSTGlue(model, testPairsSSTGlue, devPairsSSTGlue, devLabelsSSTGlue, sifA)
 
-		with open(f'scripts/taskResults/SSTGLUE/median/SST-2-{checkpoint[17:]}.tsv', 'w', newline='') as csvfile:
+		with open(f'scripts/taskResults/SSTGLUE/median/SST-2-{str(model.config.dim) + model.config.func + model.config.measure}.tsv', 'w', newline='') as csvfile:
 			writer = csv.writer(csvfile, delimiter='\t', quotechar='ß')
 			writer.writerow(["index", "prediction"])
 			for index, pred in zip(range(len(predsMedianSSTGlue)), predsMedianSSTGlue):
 				writer.writerow([index, pred])
 		
-		with open(f'scripts/taskResults/SSTGLUE/threshold/SST-2-{checkpoint[17:]}.tsv', 'w', newline='') as csvfile:
+		with open(f'scripts/taskResults/SSTGLUE/threshold/SST-2-{str(model.config.dim) + model.config.func + model.config.measure}.tsv', 'w', newline='') as csvfile:
 			writer = csv.writer(csvfile, delimiter='\t', quotechar='ß')
 			writer.writerow(["index", "prediction"])
 			for index, pred in zip(testIndicesSSTGlue, predsThresholdSSTGlue):
@@ -154,13 +162,13 @@ def main():
 		model = FireWord.from_pretrained(checkpoint).to(device)
 		predsMedianRTE, predsThresholdRTE = predictRTE(model, testPairsRTE, devPairsRTE, devLabelsRTE, sifA)
 
-		with open(f'scripts/taskResults/RTE/median/RTE-{checkpoint[17:]}.tsv', 'w', newline='') as csvfile:
+		with open(f'scripts/taskResults/RTE/median/RTE-{str(model.config.dim) + model.config.func + model.config.measure}.tsv', 'w', newline='') as csvfile:
 				writer = csv.writer(csvfile, delimiter='\t', quotechar='ß')
 				writer.writerow(["index", "prediction"])
 				for index, pred in zip(range(len(predsMedianRTE)), predsMedianRTE):
 					writer.writerow([index, pred])
 			
-		with open(f'scripts/taskResults/RTE/threshold/RTE-{checkpoint[17:]}.tsv', 'w', newline='') as csvfile:
+		with open(f'scripts/taskResults/RTE/threshold/RTE-{str(model.config.dim) + model.config.func + model.config.measure}.tsv', 'w', newline='') as csvfile:
 			writer = csv.writer(csvfile, delimiter='\t', quotechar='ß')
 			writer.writerow(["index", "prediction"])
 			for index, pred in zip(testIndicesRTE, predsThresholdRTE):
@@ -231,7 +239,7 @@ def benchmarkMRPC(
 	low = min(preds)
 	high = max(preds)
 	steps = math.ceil((high - low) / 2)*100
-
+	
 	for threshold in np.linspace(low, high, steps):
 		truePosCount = sum([int(preds[i] >= threshold) == 1 and labels[i] == 1 for i in range(len(preds))])
 		falsePosCount = sum([int(preds[i] >= threshold) == 1 and labels[i] == 0 for i in range(len(preds))])

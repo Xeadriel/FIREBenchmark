@@ -41,7 +41,8 @@ def fineTune(args):
 	set_seed(args.seed)
 	
 	model = FireWord.from_pretrained(args.pretrainedModel)
-
+	logger.info("model loaded")
+	
 	sentencePairs = []
 	labels = []
 	if args.task == "MRPC":
@@ -56,16 +57,43 @@ def fineTune(args):
 	elif args.task == "RTE":
 		sentencePairs, labels, evalPairs, evalLabels, _, _ = prepareRTEGlueData('scripts/tasks/RTE/train.tsv',
 																	   'scripts/tasks/RTE/dev.tsv', 'scripts/tasks/RTE/test.tsv')
-	
+	logger.info("data prepared")
 	indices = list(range(len(sentencePairs[0])))
 
 	logger.info(model)
 
 	model = model.to(device)
-	model.train()
+	model.eval()
 
 	best_simscore = -9999
 	best_loss = 9999
+
+	if args.task == "MRPC":
+		#F1 score
+		simscore = benchmarkMRPC(model, evalPairs, evalLabels)[4]
+	elif args.task == "SST-2":
+		#threshold search based predictions 
+		predictions = predictSSTGlue(model, evalPairs, evalPairs, evalLabels)[1]
+		#accuracy
+		simscore = sum([predictions[x] == evalLabels[x] for x in range(len(predictions))]) / len(predictions)
+	elif args.task == "RTE":
+		#threshold search based predictions
+		predictions = predictRTE(model, evalPairs, evalPairs, evalLabels)[1]
+		#accuracy
+		simscore = sum([predictions[x] == evalLabels[x] for x in range(len(predictions))]) / len(predictions)
+
+	logits = predictSentencePairs(model, evalPairs)
+			
+	lossSim = F.binary_cross_entropy_with_logits(
+		logits,
+		torch.tensor(evalLabels, dtype=torch.float, device=device, requires_grad=False), reduction="none"
+	)
+	loss.add("sim", lossSim)
+
+	total_loss = loss.reduced_total()
+	best_loss = total_loss.item()
+
+	model.train()
 
 	if args.optimizer == "adamw":
 		optimizer = AdamW(
@@ -79,7 +107,11 @@ def fineTune(args):
 		)
 	elif args.optimizer == "sgd":
 		optimizer = SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+	logger.info("optimizer set")
+	
+	
 	if args.lr_scheduler == "OneCycleLR":
+		logger.info("pre onecycle")
 		scheduler = OneCycleLR(
 			optimizer,
 			max_lr=args.lr,
@@ -87,24 +119,33 @@ def fineTune(args):
 			div_factor=1.0,
 			final_div_factor=20.0,
 		)
+		logger.info("after onecycle")
 	else:
+		logger.info("dummy")
 		scheduler = DummyScheduler(args.lr)
 	logger.info(f"Initialized optimizer and scheduler")
 	logger.info(f"	Optimizer: {optimizer}")
 	logger.info(f"	Scheduler: {scheduler}")
+	logger.info("scheduler set")
+
 
 	if args.amp:
 		scaler = GradScaler()
 		autocaster = autocast()
 	else:
 		autocaster = nullcontext()
+	logger.info("amp set")
+	
 	if args.profile:
 		prof = torch.autograd.profiler.profile(use_cuda=True)
 	else:
 		prof = nullcontext()
-
+	logger.info("profiler set")
+	
+	logger.info("pre for loop ")
 	for i in range(1, args.n_iters + 1):
-
+		logger.info(f"iteration: {i}")
+		
 		with Timer(elapsed, "prepare", sync_cuda=True):
 			iterationIndices = random.sample(indices, args.sz_batch)
 			iterationPairs = [[sentencePairs[0][x] for x in iterationIndices], [sentencePairs[1][x] for x in iterationIndices]]
@@ -126,6 +167,7 @@ def fineTune(args):
 			total_loss = loss.reduced_total()
 			steploss = total_loss / args.accum_steps
 		if args.profile:
+			pass
 			logger.debug("----- forward -----")
 			logger.debug(prof.key_averages().table(sort_by="self_cpu_time_total"))
 		""" ----------------- backward pass -------------------"""
@@ -135,29 +177,16 @@ def fineTune(args):
 			else:
 				steploss.backward()
 
-			# grad_norm = (
-			# 	torch.cat([p.grad.data.reshape(-1) for p in model.parameters()])
-			# 	.norm()
-			# 	.item()
-			# )
 
 		if args.profile:
+			pass
 			logger.debug("----- backward -----")
 			logger.debug(prof.key_averages().table(sort_by="self_cpu_time_total"))
 		""" ----------------- optim -------------------"""
 		if i % args.accum_steps == 0:
 			with Timer(elapsed, "optim", sync_cuda=True):
 				with Timer(elapsed, "step"):
-					for name, p in model.named_parameters():
-						print(name, p, p.grad)
-						isnan = p.grad.isnan()
-						isinf = p.grad.isinf()
-						isinvalid = isnan | isinf
-						if isinvalid.any():
-							p.grad.masked_fill_(isinvalid, 0)
-							p[isinvalid].normal_(0, 0.1)
-							print(f"Fixed nan/inf values in grad of {name}")
-							print(f"  grad = {p.grad}")
+					logger.info(f"step iteration: {i}")
 
 					if args.amp:
 						scaler.step(optimizer)
@@ -172,7 +201,7 @@ def fineTune(args):
 					model.zero_grad()
 
 		if i % args.eval_interval == 0:
-
+			logger.info(f"eval iteration: {i}")
 			os.makedirs(args.savedir, exist_ok=True)
 			model.eval()
 
@@ -241,6 +270,110 @@ def sentence_simmat(model, sents: List[List[str]], sif_weights: Mapping[str, flo
     )
     return sentsim
 
+def predictSentencePairsWithDevThresholds(
+	model: FireWord,
+	pairs,
+	devPairs,
+	devLabels,
+	sif_alpha=1e-3,
+):
+	vocab: Vocab = model.vocab
+
+	def computeThresholdFromDevData():
+		counts = pd.Series(vocab.counts_dict())
+		probs = counts / counts.sum()
+		sif_weights: Mapping[str, float] = {
+			w: sif_alpha / (sif_alpha + prob) for w, prob in probs.items()
+		}
+
+		sents1 = devPairs[0]
+		sents2 = devPairs[1]
+		allsents = sents1 + sents2
+		allsents = [
+			[w for w in sent if w in sif_weights and w != vocab.unk]
+			for sent in allsents
+		]
+
+		""" similarity """
+		with Timer(elapsed, "similarity", sync_cuda=True):
+			simmat = sentence_simmat(model, allsents, sif_weights)
+
+		""" regularization: sim(i,j) <- sim(i,j) - 0.5 * (sim(i,i) + sim(j,j)) 
+		halved bc (9)"""
+		with Timer(elapsed, "regularization"):
+			diag = np.diag(simmat)
+			simmat = simmat - 0.5 * (diag.reshape(-1, 1) + diag.reshape(1, -1))
+
+		with Timer(elapsed, "smooth"):
+			mean1 = np.mean(simmat, axis=1, keepdims=True)
+			std1 = np.std(simmat, axis=1, keepdims=True)
+			mean0 = np.mean(simmat, axis=0, keepdims=True)
+			std0 = np.std(simmat, axis=0, keepdims=True)
+			simmat = (simmat - (mean1 + mean0) / 2) / (std0 * std1) ** 0.5
+
+			N = len(devPairs[0])
+			preds = [simmat[i, i + N] for i in range(N)]
+			preds = np.exp(preds)
+			preds = np.array(preds)
+
+		bestThreshold = 0
+		bestAccuracy = 0
+		low = min(preds)
+		high = max(preds)
+		steps = math.ceil((high - low) / 2)*100
+
+		for threshold in np.linspace(low, high, steps):
+			accuracy =  sum([int(preds[i] >= threshold) == (devLabels[i]) for i in range(len(preds))]) / len(preds)
+			if bestAccuracy < accuracy: 
+				bestThreshold = threshold
+				bestAccuracy = accuracy
+		
+
+		return bestThreshold
+
+	counts = pd.Series(vocab.counts_dict())
+	probs = counts / counts.sum()
+	sif_weights: Mapping[str, float] = {
+		w: sif_alpha / (sif_alpha + prob) for w, prob in probs.items()
+	}
+
+	sents1 = [ [w for w in sent if w in sif_weights and w != vocab.unk] for sent in pairs[0] ]
+	sents2 = [ [w for w in sent if w in sif_weights and w != vocab.unk] for sent in pairs[1] ]
+
+	allsents = sents1 + sents2
+	allsents = [
+		[w for w in sent if w in sif_weights and w != vocab.unk]
+		for sent in allsents
+	]
+	simmat = sentence_simmat(model, allsents, sif_weights)
+
+	""" regularization: sim(i,j) <- sim(i,j) - 0.5 * (sim(i,i) + sim(j,j)) 
+	halved bc (9)"""
+
+	diag = np.diag(simmat)
+	simmat = simmat - 0.5 * (diag.reshape(-1, 1) + diag.reshape(1, -1))
+
+	""" smoothing by standardization """
+	mean1 = np.mean(simmat, axis=1, keepdims=True)
+	std1 = np.std(simmat, axis=1, keepdims=True)
+	mean0 = np.mean(simmat, axis=0, keepdims=True)
+	std0 = np.std(simmat, axis=0, keepdims=True)
+	simmat = (simmat - (mean1 + mean0) / 2) / (std0 * std1) ** 0.5
+
+	simmat = [simmat[i, i + len(sents1)] for i in range(len(sents1))]
+
+	simmat = [int(x) for x in simmat >= computeThresholdFromDevData()]
+
+	similarities = torch.zeros(len(sents1), requires_grad=True, device=device)
+	similaritiesTmp =  torch.zeros(len(sents1), requires_grad=False, device=device)
+	
+	for y in range(len(sents1)):
+		similaritiesTmp[y] = similaritiesTmp[y] + simmat[y]
+
+	similarities = similarities + similaritiesTmp
+
+	return similarities
+
 def predictSentencePairs(
 	model: FireWord,
 	pairs,
@@ -257,18 +390,34 @@ def predictSentencePairs(
 	sents1 = [ [w for w in sent if w in sif_weights and w != vocab.unk] for sent in pairs[0] ]
 	sents2 = [ [w for w in sent if w in sif_weights and w != vocab.unk] for sent in pairs[1] ]
 
+	allsents = sents1 + sents2
+	allsents = [
+		[w for w in sent if w in sif_weights and w != vocab.unk]
+		for sent in allsents
+	]
+	simmat = sentence_simmat(model, allsents, sif_weights)
+
+	""" regularization: sim(i,j) <- sim(i,j) - 0.5 * (sim(i,i) + sim(j,j)) 
+	halved bc (9)"""
+
+	diag = np.diag(simmat)
+	simmat = simmat - 0.5 * (diag.reshape(-1, 1) + diag.reshape(1, -1))
+
+	""" smoothing by standardization """
+	mean1 = np.mean(simmat, axis=1, keepdims=True)
+	std1 = np.std(simmat, axis=1, keepdims=True)
+	mean0 = np.mean(simmat, axis=0, keepdims=True)
+	std0 = np.std(simmat, axis=0, keepdims=True)
+	simmat = (simmat - (mean1 + mean0) / 2) / (std0 * std1) ** 0.5
+
+	simmat = [simmat[i, i + len(sents1)] for i in range(len(sents1))]
+
 	similarities = torch.zeros(len(sents1), requires_grad=True, device=device)
 	similaritiesTmp =  torch.zeros(len(sents1), requires_grad=False, device=device)
-
+	
 	for y in range(len(sents1)):
-		sent1 = sents1[y]
-		sent2 = sents2[y]
+		similaritiesTmp[y] = similaritiesTmp[y] + simmat[y]
 
-		
-		for word1 in sent1:
-			for word2 in sent2:
-				similaritiesTmp[y] += (model[word1] * model[word2] * sif_weights[word1] * sif_weights[word2])[0]
-		
 	similarities = similarities + similaritiesTmp
 
 	return similarities
@@ -377,6 +526,17 @@ def parse_arguments():
 		default="",
 		choices=["MRPC", "RTE", "SST-2"],
 		help = "Choose the benchmark task to fine-tune for."
+	)
+
+	def boolean_string(s):
+		if s not in {"False", "True"}:
+			raise ValueError("Not a valid boolean string")
+		return s == "True"
+
+	parser.add_argument("--thresholdPrediction",
+		type=boolean_string,
+		default="False",
+		help="Whether the prediction uses the evaluation data to generate classification thresholds.",
 	)
 
 	args = parser.parse_args()
