@@ -1,0 +1,5 @@
+python -m scripts.fineTune --sz_batch=400 --lr=0.005 --lr_scheduler=OneCycleLR --n_iters=10000 --eval_interval=200 --savedir=results/fineTuningResults/RTE_v1.1_wacky_mlplanardiv_d2_l8_k20 --optimizer=adamw --seed=0 --accum_steps=10 --weight_decay=1e-6 --pretrainedModel=checkpoints/v1.1/wacky_mlplanardiv_d2_l8_k20 --task=RTE --thresholdPrediction=True
+
+python -m scripts.fineTune --sz_batch=400 --lr=0.005 --lr_scheduler=OneCycleLR --n_iters=10000 --eval_interval=200 --savedir=results/fineTuningResults/RTE_v1.1_wacky_mlplanardiv_d2_l4_k10 --optimizer=adamw --seed=0 --accum_steps=10 --weight_decay=1e-6 --pretrainedModel=checkpoints/v1.1/wacky_mlplanardiv_d2_l4_k10 --task=RTE --thresholdPrediction=True
+
+python -m scripts.fineTune --sz_batch=400 --lr=0.005 --lr_scheduler=OneCycleLR --n_iters=10000 --eval_interval=200 --savedir=results/fineTuningResults/RTE_v1.1_wacky_mlplanardiv_d2_l4_k1_polysemy --optimizer=adamw --seed=0 --accum_steps=10 --weight_decay=1e-6 --pretrainedModel=checkpoints/v1.1/wacky_mlplanardiv_d2_l4_k1_polysemy --task=RTE --thresholdPrediction=True
