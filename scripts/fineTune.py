@@ -159,7 +159,11 @@ def fineTune(args):
 
 			loss = Loss()
 
-			logits = predictSentencePairs(model, iterationPairs)
+			logits = 0
+			if args.thresholdPrediction:
+				logits = predictSentencePairsWithDevThresholds(model, iterationPairs, evalPairs, evalLabels)	
+			else:
+				logits = predictSentencePairs(model, iterationPairs)
 			
 			lossSim = F.binary_cross_entropy_with_logits(
 				logits,
